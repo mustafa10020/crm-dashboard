@@ -112,9 +112,9 @@ function boot() {
     : null;
   if (!emp || emp.role !== 'admin') {
     if (emp) DataStore.clearSession(); // لا نستعيد جلسة موظف عادي
-    $('#loginUser').value = 'admin';
+    $('#loginUser').value = '';
     $('#loginPass').value = '';
-    $('#loginUser').focus();
+    $('#loginError').textContent = '';
     return; // تبقى شاشة الدخول ظاهرة
   }
   enterApp(emp);
