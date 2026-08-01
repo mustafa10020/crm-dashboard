@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>نظام CRM - لوحة التحكم</title>
+    <meta name="description" content="نظام إدارة علاقات العملاء - متابعة العملاء من البداية حتى إغلاق الملف" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
+</head>
+<body>
+
+    <!-- ===== التطبيق الرئيسي ===== -->
+    <div id="app" class="app">
+
+        <!-- الشريط الجانبي -->
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <span class="brand-logo">📊</span>
+                <div>
+                    <h2 id="brandTitle">نظام CRM</h2>
+                    <p>إدارة علاقات العملاء</p>
+                </div>
+            </div>
+
+            <nav class="nav">
+                <button class="nav-item active" data-view="dashboard">
+                    <span class="nav-icon">📈</span> لوحة التحكم
+                </button>
+                <button class="nav-item" data-view="customers">
+                    <span class="nav-icon">👥</span> العملاء
+                </button>
+                <button class="nav-item" data-view="followups">
+                    <span class="nav-icon">⏰</span> المتابعات
+                    <span class="badge" id="navFollowupCount" hidden>0</span>
+                </button>
+                <button class="nav-item" data-view="tasks">
+                    <span class="nav-icon">✅</span> المهام
+                </button>
+                <button class="nav-item" data-view="reports">
+                    <span class="nav-icon">📊</span> التقارير
+                </button>
+                <button class="nav-item" data-view="settings">
+                    <span class="nav-icon">⚙️</span> الإعدادات
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button class="btn btn-block btn-dark" id="exportBtn">⬇️ تصدير البيانات</button>
+                <button class="btn btn-block btn-danger" id="resetDataBtn">🗑️ مسح كل البيانات</button>
+            </div>
+        </aside>
+
+        <!-- زر القائمة للجوال -->
+        <button class="menu-toggle" id="menuToggle" aria-label="فتح القائمة">☰</button>
+        <div class="overlay" id="overlay" hidden></div>
+
+        <!-- المحتوى الرئيسي -->
+        <main class="main">
+
+            <!-- ====== عرض: لوحة التحكم ====== -->
+            <section class="view active" id="view-dashboard">
+
+                <header class="page-header">
+                    <div>
+                        <h1>لوحة التحكم</h1>
+                        <p id="todayDate" class="subtitle"></p>
+                    </div>
+                    <button class="btn btn-primary" id="addLeadBtn">+ إضافة عميل جديد</button>
+                </header>
+
+                <!-- بطاقات KPI -->
+                <section class="kpi-grid">
+
+                    <div class="kpi-card blue">
+                        <span class="kpi-icon">🧑‍💼</span>
+                        <div class="kpi-body">
+                            <span class="label">إجمالي العملاء</span>
+                            <span class="value" id="kpiTotal">0</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card green">
+                        <span class="kpi-icon">✔️</span>
+                        <div class="kpi-body">
+                            <span class="label">صفقات منجزة</span>
+                            <span class="value" id="kpiDone">0</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card orange">
+                        <span class="kpi-icon">🔄</span>
+                        <div class="kpi-body">
+                            <span class="label">قيد الإجراء</span>
+                            <span class="value" id="kpiAction">0</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card purple">
+                        <span class="kpi-icon">⚙️</span>
+                        <div class="kpi-body">
+                            <span class="label">قيد التنفيذ</span>
+                            <span class="value" id="kpiOngoing">0</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card teal">
+                        <span class="kpi-icon">✨</span>
+                        <div class="kpi-body">
+                            <span class="label">عملاء جدد</span>
+                            <span class="value" id="kpiNew">0</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card gray">
+                        <span class="kpi-icon">📵</span>
+                        <div class="kpi-body">
+                            <span class="label">غير متواصل</span>
+                            <span class="value" id="kpiNoContact">0</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card red">
+                        <span class="kpi-icon">⏳</span>
+                        <div class="kpi-body">
+                            <span class="label">متأخر</span>
+                            <span class="value" id="kpiDelayed">0</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card cyan">
+                        <span class="kpi-icon">🔁</span>
+                        <div class="kpi-body">
+                            <span class="label">تدوير</span>
+                            <span class="value" id="kpiRotation">0</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card pink">
+                        <span class="kpi-icon">📅</span>
+                        <div class="kpi-body">
+                            <span class="label">أنشطة اليوم</span>
+                            <span class="value" id="kpiTodayActivities">0</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card yellow">
+                        <span class="kpi-icon">🔔</span>
+                        <div class="kpi-body">
+                            <span class="label">متابعات</span>
+                            <span class="value" id="kpiFollowUps">0</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card dark">
+                        <span class="kpi-icon">💰</span>
+                        <div class="kpi-body">
+                            <span class="label">تمويل (T Sales)</span>
+                            <span class="value" id="kpiSales">0</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card lime">
+                        <span class="kpi-icon">🔒</span>
+                        <div class="kpi-body">
+                            <span class="label">ملفات مغلقة</span>
+                            <span class="value" id="kpiClosed">0</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card brown">
+                        <span class="kpi-icon">💬</span>
+                        <div class="kpi-body">
+                            <span class="label">تعليقات اليوم</span>
+                            <span class="value" id="kpiComments">0</span>
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- الأنشطة القادمة -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>الأنشطة القادمة خلال 7 أيام</h2>
+                    </div>
+                    <div class="activity-tabs">
+                        <button class="tab active" data-atab="followup">متابعات</button>
+                        <button class="tab" data-atab="delayed">متأخرة</button>
+                        <button class="tab" data-atab="all">الكل</button>
+                    </div>
+                    <div id="activityContent" class="activity-content">
+                        <p class="empty-text">لا توجد أنشطة</p>
+                    </div>
+                </section>
+
+                <!-- توزيع العملاء حسب الحالة -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>توزيع العملاء حسب الحالة</h2>
+                    </div>
+                    <div id="statusDistribution" class="status-distribution"></div>
+                </section>
+
+            </section>
+
+            <!-- ====== عرض: العملاء ====== -->
+            <section class="view" id="view-customers">
+
+                <header class="page-header">
+                    <div>
+                        <h1>العملاء</h1>
+                        <p class="subtitle">إدارة ومتابعة العملاء من البداية حتى إغلاق الملف</p>
+                    </div>
+                    <button class="btn btn-primary" id="addLeadBtn2">+ إضافة عميل جديد</button>
+                </header>
+
+                <!-- شريط الأدوات -->
+                <div class="toolbar">
+                    <input type="search" id="searchInput" class="search-input" placeholder="🔍 ابحث بالاسم أو الهاتف..." />
+                    <select id="statusFilter" class="select-input">
+                        <option value="all">كل الحالات</option>
+                    </select>
+                    <select id="sourceFilter" class="select-input">
+                        <option value="all">كل المصادر</option>
+                    </select>
+                    <select id="employeeFilter" class="select-input">
+                        <option value="all">كل الموظفين</option>
+                    </select>
+                    <button class="btn btn-outline" id="clearFiltersBtn">مسح الفلاتر</button>
+                </div>
+
+                <!-- ملخص سريع -->
+                <div id="customersSummary" class="summary-bar"></div>
+
+                <!-- جدول العملاء -->
+                <div class="table-wrap">
+                    <table class="table" id="customersTable">
+                        <thead>
+                            <tr>
+                                <th>الاسم</th>
+                                <th>الهاتف</th>
+                                <th>الحالة</th>
+                                <th>المصدر</th>
+                                <th>الموظف المسؤول</th>
+                                <th>آخر متابعة</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customersBody"></tbody>
+                    </table>
+                </div>
+
+            </section>
+
+            <!-- ====== عرض: المتابعات ====== -->
+            <section class="view" id="view-followups">
+
+                <header class="page-header">
+                    <div>
+                        <h1>المتابعات</h1>
+                        <p class="subtitle">كل متابعات العملاء المقررة والقادمة</p>
+                    </div>
+                    <button class="btn btn-primary" id="addFollowupBtn">+ إضافة متابعة</button>
+                </header>
+
+                <div class="toolbar">
+                    <div class="activity-tabs">
+                        <button class="tab active" data-ftab="pending">قادمة</button>
+                        <button class="tab" data-ftab="delayed">متأخرة</button>
+                        <button class="tab" data-ftab="done">تمت</button>
+                        <button class="tab" data-ftab="all">الكل</button>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>العميل</th>
+                                <th>نوع النشاط</th>
+                                <th>الموعد</th>
+                                <th>الموظف</th>
+                                <th>الحالة</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="followupsBody"></tbody>
+                    </table>
+                </div>
+
+            </section>
+
+            <!-- ====== عرض: المهام ====== -->
+            <section class="view" id="view-tasks">
+
+                <header class="page-header">
+                    <div>
+                        <h1>المهام</h1>
+                        <p class="subtitle">إدارة المهام اليومية للفريق</p>
+                    </div>
+                    <button class="btn btn-primary" id="addTaskBtn">+ إضافة مهمة</button>
+                </header>
+
+                <div class="toolbar">
+                    <input type="search" id="taskSearchInput" class="search-input" placeholder="🔍 ابحث عن مهمة..." />
+                    <select id="taskStatusFilter" class="select-input">
+                        <option value="all">كل الحالات</option>
+                        <option value="قيد التنفيذ">قيد التنفيذ</option>
+                        <option value="تمت">تمت</option>
+                        <option value="معلقة">معلقة</option>
+                    </select>
+                </div>
+
+                <div id="tasksList" class="tasks-list"></div>
+
+            </section>
+
+            <!-- ====== عرض: التقارير ====== -->
+            <section class="view" id="view-reports">
+
+                <header class="page-header">
+                    <div>
+                        <h1>التقارير</h1>
+                        <p class="subtitle">تحليلات وإحصائيات أداء العمل</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-outline" id="printReportBtn">🖨️ طباعة التقرير</button>
+                    </div>
+                </header>
+
+                <section id="reportContent" class="report-content"></section>
+
+            </section>
+
+            <!-- ====== عرض: الإعدادات ====== -->
+            <section class="view" id="view-settings">
+
+                <header class="page-header">
+                    <div>
+                        <h1>الإعدادات</h1>
+                        <p class="subtitle">تخصيص النظام وبيانات الشركة</p>
+                    </div>
+                </header>
+
+                <div class="settings-grid">
+
+                    <section class="panel">
+                        <h3>بيانات الشركة</h3>
+                        <div class="form-group">
+                            <label>اسم الشركة / النظام</label>
+                            <input type="text" id="setCompanyName" />
+                        </div>
+                        <div class="form-group">
+                            <label>اسم الموظف الحالي</label>
+                            <input type="text" id="setEmployeeName" placeholder="من المستخدم الحالي؟" />
+                        </div>
+                        <div class="form-group">
+                            <label>قائمة الموظفين (افصل بينهم بفاصلة)</label>
+                            <input type="text" id="setEmployees" placeholder="أحمد، محمد، سارة..." />
+                        </div>
+                        <div class="form-group">
+                            <label>مصادر العملاء (افصل بينهم بفاصلة)</label>
+                            <input type="text" id="setSources" placeholder="إعلان، تليفون، واتساب..." />
+                        </div>
+                        <button class="btn btn-primary" id="saveSettingsBtn">💾 حفظ الإعدادات</button>
+                    </section>
+
+                    <section class="panel">
+                        <h3>إدارة البيانات</h3>
+                        <p class="hint">تصدير نسخة احتياطية من كل بياناتك أو استيراد بيانات سابقة.</p>
+                        <div class="form-group">
+                            <label>نسخ احتياطي (تصدير)</label>
+                            <button class="btn btn-outline" id="settingsExportBtn">⬇️ تصدير ملف JSON</button>
+                        </div>
+                        <div class="form-group">
+                            <label>استعادة نسخة (استيراد)</label>
+                            <input type="file" id="importFile" accept="application/json" />
+                        </div>
+                        <div class="form-group">
+                            <label>إعادة ضبط المصنع</label>
+                            <button class="btn btn-danger" id="factoryResetBtn">🗑️ مسح كل البيانات والبدء من جديد</button>
+                        </div>
+                    </section>
+
+                    <section class="panel">
+                        <h3>طريقة النشر</h3>
+                        <p class="hint">هذا النظام يعمل 100% بدون خادم (Serverless). بياناتك تُحفظ محلياً في متصفحك باستخدام LocalStorage، لذلك يمكن نشره مجاناً على GitHub Pages أو Netlify أو Vercel.</p>
+                        <ul class="hint-list">
+                            <li>1. ارفع هذه الملفات إلى مستودع GitHub جديد.</li>
+                            <li>2. من Settings ← Pages ← اختر الفرع main وحدد /root ثم Save.</li>
+                            <li>3. خلال دقائق سيظهر موقعك على رابط يشبه: <code>https://اسمك.github.io/crm-dashboard/</code></li>
+                        </ul>
+                    </section>
+
+                </div>
+
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ====== نافذة إضافة / تعديل عميل ====== -->
+    <div id="leadModal" class="modal" hidden>
+        <div class="modal-content">
+            <span class="close" data-close="leadModal">&times;</span>
+            <h2 id="leadModalTitle">إضافة عميل جديد</h2>
+            <form id="leadForm">
+                <input type="hidden" id="leadId" />
+                <div class="form-group">
+                    <label>اسم العميل *</label>
+                    <input type="text" id="leadName" required />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>رقم الهاتف</label>
+                        <input type="text" id="leadPhone" />
+                    </div>
+                    <div class="form-group">
+                        <label>المصدر</label>
+                        <select id="leadSource"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>الحالة</label>
+                    <select id="leadStatus">
+                        <option value="جديد">جديد</option>
+                        <option value="قيد الإجراء">قيد الإجراء</option>
+                        <option value="قيد التنفيذ">قيد التنفيذ</option>
+                        <option value="منجز">منجز</option>
+                        <option value="مغلق">مغلق</option>
+                        <option value="غير متواصل">غير متواصل</option>
+                        <option value="تدوير">تدوير</option>
+                        <option value="تمويل">تمويل</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>الموظف المسؤول</label>
+                        <select id="leadEmployee"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>قيمة الصفقة (بالجنيه)</label>
+                        <input type="number" id="leadValue" min="0" placeholder="0" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>موعد المتابعة القادمة</label>
+                    <input type="datetime-local" id="leadFollowupDate" />
+                </div>
+                <div class="form-group">
+                    <label>ملاحظات</label>
+                    <textarea id="leadNotes" rows="3" placeholder="تفاصيل إضافية عن العميل..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">💾 حفظ</button>
+                    <button type="button" class="btn btn-outline" data-close="leadModal">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ====== نافذة ملف العميل (التتبع الكامل) ====== -->
+    <div id="detailModal" class="modal modal-wide" hidden>
+        <div class="modal-content">
+            <span class="close" data-close="detailModal">&times;</span>
+            <div id="detailContent"></div>
+        </div>
+    </div>
+
+    <!-- ====== نافذة إضافة متابعة ====== -->
+    <div id="followupModal" class="modal" hidden>
+        <div class="modal-content">
+            <span class="close" data-close="followupModal">&times;</span>
+            <h2>إضافة متابعة</h2>
+            <form id="followupForm">
+                <input type="hidden" id="followupId" />
+                <div class="form-group">
+                    <label>العميل *</label>
+                    <select id="followupCustomer" required></select>
+                </div>
+                <div class="form-group">
+                    <label>نوع النشاط</label>
+                    <select id="followupType">
+                        <option>مكالمة</option>
+                        <option>واتساب</option>
+                        <option>اجتماع</option>
+                        <option>بريد إلكتروني</option>
+                        <option>زيارة</option>
+                        <option>أخرى</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>الموعد</label>
+                        <input type="datetime-local" id="followupDate" />
+                    </div>
+                    <div class="form-group">
+                        <label>الموظف</label>
+                        <select id="followupEmployee"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>ملاحظات</label>
+                    <textarea id="followupNotes" rows="3"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">💾 حفظ</button>
+                    <button type="button" class="btn btn-outline" data-close="followupModal">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ====== نافذة إضافة مهمة ====== -->
+    <div id="taskModal" class="modal" hidden>
+        <div class="modal-content">
+            <span class="close" data-close="taskModal">&times;</span>
+            <h2>إضافة مهمة</h2>
+            <form id="taskForm">
+                <input type="hidden" id="taskId" />
+                <div class="form-group">
+                    <label>عنوان المهمة *</label>
+                    <input type="text" id="taskTitle" required />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>الموظف</label>
+                        <select id="taskEmployee"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>الحالة</label>
+                        <select id="taskStatus">
+                            <option>قيد التنفيذ</option>
+                            <option>معلقة</option>
+                            <option>تمت</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>الموعد النهائي</label>
+                        <input type="date" id="taskDueDate" />
+                    </div>
+                    <div class="form-group">
+                        <label>الأولوية</label>
+                        <select id="taskPriority">
+                            <option>متوسطة</option>
+                            <option>عادية</option>
+                            <option>عالية</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>وصف المهمة</label>
+                    <textarea id="taskDesc" rows="3"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">💾 حفظ</button>
+                    <button type="button" class="btn btn-outline" data-close="taskModal">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- تنبيه -->
+    <div id="toast" class="toast" hidden></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
