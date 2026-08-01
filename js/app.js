@@ -47,7 +47,9 @@ $('#loginForm').addEventListener('submit', e => {
 });
 
 function doLogin(user, pass) {
-  const emp = DataStore.getEmployees().find(x => x.username === user && x.password === pass);
+  const u = user.toLowerCase();
+  const emp = DataStore.getEmployees().find(x =>
+    (x.username.toLowerCase() === u || x.name === user) && x.password === pass);
   if (!emp) {
     $('#loginError').textContent = 'بيانات الدخول غير صحيحة';
     return;
