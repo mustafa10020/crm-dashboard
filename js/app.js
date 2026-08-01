@@ -771,6 +771,49 @@ $('#refreshLogBtn').addEventListener('click', () => {
   showToast('تم تحديث السجل اللحظي');
 });
 
+/* ---------- محاكاة رسالة عميل واردة (اختبار المسار كاملاً) ----------
+   تُستخدم قبل تفعيل واتساب الأعمال لإظهار نفس النتيجة تماماً:
+   استقبال رسالة → إنشاء عميل → توزيع عادل → ظهور الرسالة في الموقع
+   → تسجيل في سجل اللحظة. بعد تفعيل Webhook الحقيقي، نفس المسار
+   سيستقبل رسائل العملاء الفعلية.
+*/
+const FAKE_CLIENTS = ['كريم عادل', 'نورا سمير', 'طارق حسين', 'آية محمود', 'إبراهيم فؤاد', 'دينا مصطفى'];
+const FAKE_MESSAGES = [
+  'أنا مهتم بشقة 220 متر في بيت الوطن، ممكن التفاصيل؟',
+  'عايز أعرف أسعار الفيلات في التجمع الخامس',
+  'فيه عروض على الشقق الاستثمارية حالياً؟',
+  'عايز أحجز معاينة للأسبوع الجاي',
+  'بسأل عن نظام الدفع والتقسيط المتاح'
+];
+
+function simulateIncomingWhatsApp() {
+  if (!isAdmin()) { showToast('التجربة متاحة للمدير فقط'); return; }
+  const name = FAKE_CLIENTS[Math.floor(Math.random() * FAKE_CLIENTS.length)];
+  const phone = '010' + String(Math.floor(10000000 + Math.random() * 89999999));
+  const message = FAKE_MESSAGES[Math.floor(Math.random() * FAKE_MESSAGES.length)];
+  const now = new Date();
+  const time = todayISO() + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+  const customer = {
+    id: uid('cus'), name, phone, source: 'واتساب', status: STATUS.NEW,
+    assignedTo: null, propertyId: '', value: 0, createdAt: todayISO(),
+    notes: [], activities: [], conversation: []
+  };
+  customer.conversation.push({ id: uid('msg'), direction: 'in', text: message, time });
+
+  const emp = DataStore.autoAssignCustomer(customer);
+  const all = DataStore.getCustomers();
+  all.push(customer);
+  DataStore.saveCustomers(all);
+  DataStore.logActivity('رسالة واتساب واردة',
+    `محاكاة عميل: "${name}" — ${message}${emp ? ' → أُسند إلى ' + emp.name : ''}`);
+
+  showToast(emp ? `✅ استقبلنا رسالة من ${name} — أُسندت تلقائياً إلى ${emp.name}` : 'تم استقبال الرسالة');
+  if (CURRENT_VIEW === 'dashboard') renderDashboard();
+}
+
+$('#simulateBtn').addEventListener('click', simulateIncomingWhatsApp);
+
 $('#exportBtn').addEventListener('click', () => {
   const data = DataStore.exportAll();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
