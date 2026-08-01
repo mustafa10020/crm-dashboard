@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>جاري تحويلك إلى واتساب</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, system-ui, sans-serif;
+      background: linear-gradient(135deg, #0c4a6e, #1e7b9e);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .card {
+      background: #fff; border-radius: 20px; padding: 36px 30px; max-width: 380px; width: 100%;
+      text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+    .logo {
+      width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 18px;
+      background: linear-gradient(135deg, #0c4a6e, #1e7b9e); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 800;
+    }
+    h1 { color: #0c4a6e; font-size: 20px; margin-bottom: 10px; }
+    p { color: #4a6a7a; font-size: 14px; line-height: 1.7; margin-bottom: 18px; }
+    .btn {
+      display: block; background: #25D366; color: #fff; text-decoration: none;
+      padding: 14px; border-radius: 30px; font-weight: 700; font-size: 15px; margin-bottom: 12px;
+      box-shadow: 0 6px 18px rgba(37,211,102,.4); transition: transform .15s ease;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .muted { color: #8aa0b0; font-size: 12px; margin-bottom: 0; }
+    .src {
+      display: inline-block; background: #eef6ff; color: #1e7b9e; font-size: 12px;
+      padding: 4px 14px; border-radius: 30px; margin-bottom: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">N</div>
+    <h1>شكراً لاهتمامك! 👋</h1>
+    <div id="srcNote"></div>
+    <p>سيتم فتح محادثة واتساب مع فريق المبيعات خلال ثوانٍ...</p>
+    <a id="waBtn" class="btn" href="#" rel="noopener">📲 فتح واتساب الآن</a>
+    <p class="muted">إن لم يُفتح تلقائياً، اضغط الزر أعلاه</p>
+  </div>
+
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search);
+
+      var srcLabels = {
+        'fb-mishkat': 'صفحة مشكاة على فيسبوك',
+        'fb': 'فيسبوك',
+        'site': 'الموقع الرسمي',
+        'ig': 'انستجرام',
+        'wa': 'واتساب'
+      };
+      var src = q.get('s') || '';
+      var camp = q.get('c') || '';
+      var srcLabel = srcLabels[src] || (src || 'الإعلان');
+
+      if (src) {
+        var note = document.getElementById('srcNote');
+        note.className = 'src';
+        note.textContent = '👋 أهلاً بك من ' + srcLabel;
+      }
+
+      // رقم واتساب مركّب من أجزاء بحيث لا يُقرأ كنص كامل عند الأرشفة
+      var num = ['2010', '2245', '9900'].join('');
+
+      var msg = 'مرحباً، أريد الاستفسار عن شقة في بيت الوطن - الحي الثامن - التجمع الخامس';
+      if (src) msg += ' (جئت من: ' + srcLabel + ')';
+      if (camp) msg += ' [' + camp + ']';
+
+      var wa = 'https://wa.me/' + num + '?text=' + encodeURIComponent(msg);
+      document.getElementById('waBtn').href = wa;
+
+      setTimeout(function () { window.location.href = wa; }, 2500);
+
+      // تسجيل النقرة (اختياري) عبر Webhook — املأ الرابط هنا إن رغبت بجمع الترافيك
+      var wh = q.get('wh') || '';
+      if (wh) {
+        try {
+          var payload = JSON.stringify({ src: src, camp: camp, label: srcLabel, time: new Date().toISOString(), ua: navigator.userAgent });
+          if (navigator.sendBeacon) navigator.sendBeacon(wh, payload);
+          else fetch(wh, { method: 'POST', mode: 'no-cors', body: payload });
+        } catch (e) { /* تجاهل */ }
+      }
+    })();
+  </script>
+</body>
+</html>
