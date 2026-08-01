@@ -266,6 +266,7 @@ input,select{font-family:inherit;}
 .icon-btn{background:none;border:none;color:var(--muted);font-size:14px;padding:4px 6px;border-radius:6px;}
 .icon-btn:hover{background:#F1F4FA;color:var(--text);}
 .icon-btn.danger:hover{color:var(--c-red);}
+.role-tag{display:inline-block;background:var(--accent);color:#fff;font-size:10px;padding:1px 8px;border-radius:20px;vertical-align:middle;}
 
 .leads-head{align-items:flex-end;}
 .filters{display:flex;gap:10px;flex-wrap:wrap;}

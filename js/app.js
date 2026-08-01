@@ -9,6 +9,7 @@ DataStore.init();
 let CURRENT_USER = null;      // بيانات الموظف بعد تسجيل الدخول
 let CURRENT_VIEW = 'dashboard';
 let SELECTED_CUSTOMER_ID = null;
+let EDIT_EMPLOYEE_ID = null;  // موظف جاري تعديله في لوحة الإدمن
 let CHARTS = {};              // مرجع لكل الرسوم البيانية عشان نعمل destroy قبل إعادة الرسم
 
 /* ---------------- أدوات مساعدة عامة ---------------- */
@@ -764,16 +765,32 @@ function renderAdminPage() {
 
   $('#employeesTableBody').innerHTML = employees.map(e => {
     const count = customers.filter(c => c.assignedTo === e.id).length;
+    const isSelf = e.id === CURRENT_USER.id;
     return `
     <tr>
-      <td><strong>${e.name}</strong></td>
+      <td><strong>${e.name}</strong>${e.role === 'admin' ? ' <span class="role-tag">مدير</span>' : ''}</td>
       <td>${e.username}</td>
       <td>${e.role === 'admin' ? 'مدير' : 'موظف'}</td>
       <td>${count}</td>
-      <td>${e.id === CURRENT_USER.id ? '' : `<button class="icon-btn danger" data-del-emp="${e.id}">حذف</button>`}</td>
+      <td>
+        <button class="icon-btn" data-edit-emp="${e.id}" title="تعديل الاسم / الدخول / كلمة المرور">✏️</button>
+        <button class="icon-btn" data-reset-emp="${e.id}" title="إعادة تعيين كلمة المرور إلى 123456">🔑</button>
+        ${isSelf ? '' : `<button class="icon-btn danger" data-del-emp="${e.id}">حذف</button>`}
+      </td>
     </tr>`;
   }).join('');
 
+  $all('[data-edit-emp]').forEach(b => b.addEventListener('click', () => openEmployeeModal(b.dataset.editEmp)));
+  $all('[data-reset-emp]').forEach(b => b.addEventListener('click', () => {
+    const emp = employees.find(x => x.id === b.dataset.resetEmp);
+    if (!emp) return;
+    if (!confirm(`إعادة تعيين كلمة مرور "${emp.name}" إلى 123456؟`)) return;
+    emp.password = '123456';
+    DataStore.saveEmployees(employees);
+    DataStore.logActivity('إعادة تعيين كلمة مرور', `تمت إعادة تعيين كلمة مرور "${emp.name}" إلى 123456`);
+    showToast(`كلمة مرور "${emp.name}" أصبحت 123456`);
+    renderAdminPage();
+  }));
   $all('[data-del-emp]').forEach(b => b.addEventListener('click', () => {
     if (!confirm('حذف هذا الموظف؟ سيبقى عملاؤه بدون موظف مسؤول.')) return;
     const list = DataStore.getEmployees().filter(e => e.id !== b.dataset.delEmp);
@@ -799,14 +816,56 @@ function renderAdminPage() {
   });
 }
 
-$('#addEmployeeBtn').addEventListener('click', () => { $('#employeeForm').reset(); openModal('employeeModal'); });
+function openEmployeeModal(id) {
+  EDIT_EMPLOYEE_ID = id || null;
+  $('#employeeForm').reset();
+  if (id) {
+    const e = DataStore.getEmployees().find(x => x.id === id);
+    if (!e) return;
+    $('#employeeModalTitle').textContent = 'تعديل موظف';
+    $('#employeeSubmitBtn').textContent = '💾 حفظ التعديلات';
+    $('#empName').value = e.name;
+    $('#empUser').value = e.username;
+    $('#empPass').value = e.password;
+    $('#empRole').value = e.role;
+  } else {
+    $('#employeeModalTitle').textContent = 'إضافة موظف جديد';
+    $('#employeeSubmitBtn').textContent = 'إضافة';
+  }
+  openModal('employeeModal');
+}
+
+$('#addEmployeeBtn').addEventListener('click', () => openEmployeeModal(null));
 
 $('#employeeForm').addEventListener('submit', e => {
   e.preventDefault();
   const list = DataStore.getEmployees();
+  const name = $('#empName').value.trim();
+  const username = $('#empUser').value.trim();
+  const password = $('#empPass').value;
+  const role = $('#empRole').value;
+
+  if (EDIT_EMPLOYEE_ID) {
+    const idx = list.findIndex(x => x.id === EDIT_EMPLOYEE_ID);
+    if (idx === -1) return;
+    const duplicate = list.some(x => x.username === username && x.id !== EDIT_EMPLOYEE_ID);
+    if (duplicate) { showToast('اسم الدخول مستخدم بالفعل من موظف آخر'); return; }
+    list[idx].name = name;
+    list[idx].username = username;
+    list[idx].password = password;
+    list[idx].role = role;
+    DataStore.saveEmployees(list);
+    DataStore.logActivity('تعديل موظف', `تم تعديل بيانات "${name}" (الدخول: ${username})`);
+    showToast('تم حفظ تعديلات الموظف');
+    closeModal('employeeModal');
+    renderAdminPage();
+    return;
+  }
+
+  const duplicate = list.some(x => x.username === username);
+  if (duplicate) { showToast('اسم الدخول مستخدم بالفعل من موظف آخر'); return; }
   const newEmp = {
-    id: uid('emp'), name: $('#empName').value.trim(), username: $('#empUser').value.trim(),
-    password: $('#empPass').value, role: $('#empRole').value,
+    id: uid('emp'), name, username, password, role,
     color: ['#4F46E5', '#0EA5A5', '#D97706', '#DB2777', '#16A34A', '#7C3AED'][list.length % 6]
   };
   list.push(newEmp);

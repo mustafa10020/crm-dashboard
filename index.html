@@ -412,11 +412,11 @@
   </div>
 </div>
 
-<!-- ===================== نافذة إضافة موظف ===================== -->
+<!-- ===================== نافذة إضافة/تعديل موظف ===================== -->
 <div id="employeeModal" class="modal">
   <div class="modal-content">
     <span class="close" data-close="employeeModal">&times;</span>
-    <h2>إضافة موظف جديد</h2>
+    <h2 id="employeeModalTitle">إضافة موظف جديد</h2>
     <form id="employeeForm">
       <label>الاسم بالكامل</label>
       <input type="text" id="empName" required />
@@ -429,7 +429,7 @@
         <option value="employee">موظف</option>
         <option value="admin">مدير</option>
       </select>
-      <button type="submit" class="btn-primary full">إضافة</button>
+      <button type="submit" class="btn-primary full" id="employeeSubmitBtn">إضافة</button>
     </form>
   </div>
 </div>
