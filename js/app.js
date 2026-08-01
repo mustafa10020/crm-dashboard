@@ -52,7 +52,7 @@ function doLogin(user, pass) {
     return;
   }
   DataStore.setSession({ employeeId: emp.id });
-  boot();
+  enterApp(emp);
 }
 
 $all('[data-quick]').forEach(btn => {
@@ -98,14 +98,28 @@ $all('.nav-item[data-view]').forEach(btn => {
 });
 
 /* ============================================================
-   بدء التشغيل بعد تسجيل الدخول
+   بدء التشغيل
+   - عند فتح الصفحة تُستعاد جلسة المدير فقط تلقائياً.
+   - جلسة أي موظف عادي تُمسح عند الفتح، فتظهر شاشة الدخول
+     بزر "دخول كمدير النظام" — حتى لا يفتح النظام أبداً
+     على حساب موظف دون تسجيل دخول صريح.
    ============================================================ */
 function boot() {
   const session = DataStore.getSession();
-  if (!session) return; // تبقى شاشة الدخول ظاهرة
-  const emp = DataStore.getEmployees().find(x => x.id === session.employeeId);
-  if (!emp) { DataStore.clearSession(); return; }
+  const emp = session && session.employeeId
+    ? DataStore.getEmployees().find(x => x.id === session.employeeId)
+    : null;
+  if (!emp || emp.role !== 'admin') {
+    if (emp) DataStore.clearSession(); // لا نستعيد جلسة موظف عادي
+    $('#loginUser').value = 'admin';
+    $('#loginPass').value = '';
+    $('#loginUser').focus();
+    return; // تبقى شاشة الدخول ظاهرة
+  }
+  enterApp(emp);
+}
 
+function enterApp(emp) {
   CURRENT_USER = emp;
   $('#loginScreen').classList.add('hidden');
   $('#appShell').classList.remove('hidden');
