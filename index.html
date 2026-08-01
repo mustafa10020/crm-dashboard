@@ -95,6 +95,7 @@
 
       <!-- ---------- صفحة الرئيسية ---------- -->
       <section id="view-dashboard" class="view">
+        <div id="myDayBar" class="my-day-bar"></div>
         <div class="kpi-grid" id="kpiGrid"></div>
 
         <div class="dashboard-row">
@@ -124,6 +125,13 @@
             </div>
             <p class="pulse-note" id="pulseNote">لا توجد أنشطة لهذا اليوم</p>
           </div>
+        </div>
+
+        <div class="panel schedule-panel">
+          <div class="panel-head">
+            <h3 id="scheduleTitle">جدول متابعاتي (بالتاريخ والساعة) — يتجدد تلقائياً</h3>
+          </div>
+          <div id="scheduleContent" class="schedule-content"></div>
         </div>
 
         <div class="dashboard-row">
@@ -385,6 +393,8 @@
       </select>
       <label>التاريخ</label>
       <input type="date" id="actDate" required />
+      <label>الساعة (اختياري)</label>
+      <input type="time" id="actTime" />
       <button type="submit" class="btn-primary full">إضافة</button>
     </form>
   </div>
