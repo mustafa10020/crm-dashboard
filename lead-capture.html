@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>تواصل معنا — التسويق العقاري</title>
+<style>
+  :root{--accent:#4F46E5;--bg:#0f172a;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Tajawal','Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#0f172a,#1e1b4b);min-height:100vh;color:#e2e8f0;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .card{background:#1e293b;border:1px solid #334155;border-radius:20px;padding:30px;width:100%;max-width:460px;box-shadow:0 20px 50px rgba(0,0,0,.4);}
+  .card h1{font-size:22px;margin-bottom:6px;color:#fff;}
+  .card .sub{color:#94a3b8;font-size:13px;margin-bottom:22px;line-height:1.6;}
+  label{display:block;font-size:13px;color:#cbd5e1;margin:12px 0 5px;}
+  input,select,textarea{width:100%;padding:12px 14px;border:1px solid #334155;border-radius:10px;background:#0f172a;color:#fff;font-size:14px;font-family:inherit;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);}
+  button{width:100%;margin-top:20px;padding:14px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;}
+  button:hover{filter:brightness(1.1);}
+  .wa-link{display:block;text-align:center;margin-top:12px;color:#25D366;font-size:13px;text-decoration:none;}
+  .status{display:none;margin-top:14px;padding:12px;border-radius:10px;font-size:13px;text-align:center;}
+  .status.ok{display:block;background:#052e16;border:1px solid #16a34a;color:#bbf7d0;}
+  .status.err{display:block;background:#450a0a;border:1px solid #ef4444;color:#fecaca;}
+  .hint{font-size:11px;color:#64748b;margin-top:14px;line-height:1.7;text-align:center;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>تواصل معنا — التسويق العقاري</h1>
+    <p class="sub">اترك بياناتك وسيتواصل معك مختص عقاري خلال دقائق. بياناتك تصل مباشرة لنظام إدارة العملاء (CRM) وتُوزَّع تلقائياً على فريق المبيعات.</p>
+
+    <form id="leadForm">
+      <label>الاسم بالكامل *</label>
+      <input type="text" id="fName" required placeholder="مثال: محمد عبد الله" />
+
+      <label>رقم الهاتف (واتساب) *</label>
+      <input type="tel" id="fPhone" required placeholder="مثال: 01012345678" />
+
+      <label>نوع العقار المهتم به</label>
+      <select id="fProperty">
+        <option>شقة</option>
+        <option>فيلا</option>
+        <option>مكتب / تجاري</option>
+        <option>استثماري</option>
+        <option>غير محدد</option>
+      </select>
+
+      <label>رسالتك / استفسارك</label>
+      <textarea id="fMessage" rows="3" placeholder="مثال: عايز أعرف تفاصيل الشقة 220 متر في بيت الوطن..."></textarea>
+
+      <button type="submit" id="submitBtn">إرسال البيانات</button>
+    </form>
+
+    <a class="wa-link" id="waLink" target="_blank" rel="noopener">أو تواصل معنا مباشرة على واتساب</a>
+
+    <div class="status" id="statusBox"></div>
+    <p class="hint" id="envHint"></p>
+  </div>
+
+<script>
+(function () {
+  // ⚙️ هنا تحدد رابط الويب هوك المستقبِل (Google Apps Script) — اقرأ INTEGRATION-GUIDE.md
+  // يمكن تمريره أيضاً من رابط الصفحة: lead-capture.html?sheet=PASTE_WEBHOOK_URL
+  var WEBHOOK_URL = new URLSearchParams(location.search).get('sheet') || '';
+
+  var WA_NUMBER = '201022459900'; // رقم واتساب الشركة بصيغة دولية بدون +
+
+  document.getElementById('waLink').href = 'https://wa.me/' + WA_NUMBER +
+    '?text=' + encodeURIComponent('مرحباً، أريد الاستفسار عن عقار');
+
+  if (!WEBHOOK_URL) {
+    document.getElementById('envHint').textContent = 'تنبيه للمشرف: لم يُضبط رابط Webhook بعد. البيانات ستُرسل حالياً عبر واتساب فقط. انظر INTEGRATION-GUIDE.md لإعداد النموذج ليصل لنظام CRM تلقائياً.';
+  }
+
+  document.getElementById('leadForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = document.getElementById('fName').value.trim();
+    var phone = document.getElementById('fPhone').value.trim();
+    var property = document.getElementById('fProperty').value;
+    var message = document.getElementById('fMessage').value.trim();
+    var box = document.getElementById('statusBox');
+    var btn = document.getElementById('submitBtn');
+
+    var lead = {
+      type: 'lead',
+      source: 'موقع مشكاة',
+      name: name,
+      phone: phone,
+      property: property,
+      message: message,
+      time: new Date().toISOString()
+    };
+
+    btn.disabled = true;
+    btn.textContent = 'جارٍ الإرسال...';
+
+    function done(ok, msg) {
+      box.className = 'status ' + (ok ? 'ok' : 'err');
+      box.textContent = msg;
+      btn.disabled = false;
+      btn.textContent = 'إرسال البيانات';
+    }
+
+    if (!WEBHOOK_URL) {
+      // بدون ويب هوك → نرسل البيانات عبر واتساب (فتح محادثة مع رقم الشركة)
+      window.open('https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(
+        'طلب جديد من موقع مشكاة:' +
+        '\nالاسم: ' + name +
+        '\nالهاتف: ' + phone +
+        '\nالعقار: ' + property +
+        (message ? '\nالرسالة: ' + message : '')), '_blank');
+      done(true, 'تم تجهيز رسالتك على واتساب — اضغط إرسال في شاشة واتساب، وسيتم توزيع طلبك على فريق المبيعات.');
+      return;
+    }
+
+    fetch(WEBHOOK_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(lead)
+    }).then(function () {
+      done(true, 'تم استلام بياناتك بنجاح! سيتواصل معك مختص المبيعات خلال دقائق.');
+    }).catch(function () {
+      done(false, 'حدث خطأ في الإرسال. جرّب التواصل عبر واتساب.');
+    });
+  });
+})();
+</script>
+</body>
+</html>

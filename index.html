@@ -53,9 +53,9 @@
         <svg viewBox="0 0 24 24"><path d="M17 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8.5 9v-1a3.5 3.5 0 0 0-2.5-3.36M15.5 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>العملاء</span>
       </button>
-      <button class="nav-item" data-view="pipeline" title="خط المبيعات">
-        <svg viewBox="0 0 24 24"><path d="M3 5h18M3 12h12M3 19h6"/></svg>
-        <span>خط المبيعات</span>
+      <button class="nav-item" data-view="properties" title="التسويق العقاري">
+        <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4M9 11h.01M12 11h.01M15 11h.01M9 14h.01M12 14h.01M15 14h.01"/></svg>
+        <span>العقارات</span>
       </button>
       <button class="nav-item" data-view="admin" data-admin-only title="لوحة الإدمن">
         <svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 11 4.6-2.3 8-6 8-11V5z"/></svg>
@@ -136,6 +136,14 @@
             <canvas id="employeeChart" height="220"></canvas>
           </div>
         </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>تقرير الخطوات لحظة بلحظة (سجل كل الفريق)</h3>
+            <button class="btn-secondary" id="refreshLogBtn">↻ تحديث</button>
+          </div>
+          <div id="liveLog" class="live-log"></div>
+        </div>
       </section>
 
       <!-- ---------- صفحة العملاء ---------- -->
@@ -162,6 +170,35 @@
                 </tr>
               </thead>
               <tbody id="leadsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- صفحة العقارات (التسويق العقاري) ---------- -->
+      <section id="view-properties" class="view hidden">
+        <div class="panel">
+          <div class="panel-head leads-head">
+            <div class="filters">
+              <select id="filterPropertyStatus">
+                <option value="">كل الحالات</option>
+                <option>متاح</option>
+                <option>محجوز</option>
+                <option>مباع</option>
+              </select>
+              <input type="text" id="propertySearch" placeholder="بحث بالعقار أو الموقع..." />
+            </div>
+            <button class="btn-primary" id="addPropertyBtn">+ إضافة عقار</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="propertiesTable">
+              <thead>
+                <tr>
+                  <th>العقار</th><th>الموقع</th><th>المساحة</th><th>السعر</th><th>الحالة</th>
+                  <th>عدد العملاء المهتمين</th><th>المصدر</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="propertiesTableBody"></tbody>
             </table>
           </div>
         </div>
@@ -216,8 +253,12 @@
           <div class="panel">
             <div class="panel-head">
               <h3>الموظفون</h3>
-              <button class="btn-primary" id="addEmployeeBtn">+ إضافة موظف</button>
+              <div class="head-actions">
+                <button class="btn-secondary" id="distributeBtn">⚖️ توزيع عادل تلقائي</button>
+                <button class="btn-primary" id="addEmployeeBtn">+ إضافة موظف</button>
+              </div>
             </div>
+            <p class="muted-text">التوزيع العادل يُسند كل عميل جديد لأقل الموظفين حملاً تلقائياً. من قسم "الربط" بالأسفل تقدر تختار وضع العدالة أو الكفاءة.</p>
             <div class="table-wrap">
               <table class="data-table" id="employeesTable">
                 <thead><tr><th>الاسم</th><th>اسم الدخول</th><th>الدور</th><th>عدد العملاء</th><th></th></tr></thead>
@@ -229,6 +270,46 @@
           <div class="panel">
             <h3>أداء الفريق</h3>
             <canvas id="adminPerfChart" height="240"></canvas>
+          </div>
+
+          <div class="panel">
+            <h3>الربط التلقائي مع مصادر التدفق (Integration)</h3>
+            <p class="muted-text">هنا بتحدد مصادر العملاء وكيف يصلوا للنظام. اقرأ <code>INTEGRATION-GUIDE.md</code> داخل المشروع للشرح الكامل خطوة بخطوة لكل مصدر.</p>
+
+            <div class="integration-group">
+              <h4>وضع التوزيع</h4>
+              <select id="cfgDistMode">
+                <option value="count">العدالة (أقل الموظفين حملاً أولاً) — يُستخدم حالياً</option>
+                <option value="performance">الكفاءة (من يغلق أسرع يستلم أكثر) — تفعيل لاحق</option>
+              </select>
+            </div>
+
+            <div class="integration-group">
+              <h4>واتساب الشركة (WhatsApp Business API)</h4>
+              <label class="check-row"><input type="checkbox" id="cfgWaEnabled" /> تفعيل استقبال عملاء واتساب تلقائياً</label>
+              <input type="text" id="cfgWaNumber" placeholder="رقم واتساب الشركة بالصيغة الدولية بدون + (مثال: 201022459900)" />
+              <input type="text" id="cfgWaToken" placeholder="Access Token من Meta (راجع الدليل)" />
+              <input type="text" id="cfgWaWebhook" placeholder="رابط Webhook المستقبِل (نضعه في إعدادات Meta)" />
+            </div>
+
+            <div class="integration-group">
+              <h4>نموذج الموقع / اتصل بنا / راسلنا (Google Sheets)</h4>
+              <input type="text" id="cfgSheetsWebhook" placeholder="رابط Google Apps Script Webhook (راجع الدليل)" />
+            </div>
+
+            <div class="integration-group">
+              <h4>قاعدة بيانات سحابية مشتركة (Supabase) — مزامنة كل الموظفين</h4>
+              <input type="text" id="cfgSupabaseUrl" placeholder="Supabase Project URL" />
+              <input type="text" id="cfgSupabaseKey" placeholder="Supabase anon key" />
+            </div>
+
+            <div class="integration-group">
+              <h4>فيسبوك ماسنجر صفحة مشكاة</h4>
+              <label class="check-row"><input type="checkbox" id="cfgMessengerEnabled" /> تفعيل استقبال رسائل ماسنجر</label>
+              <input type="text" id="cfgMessengerToken" placeholder="Page Access Token من Meta" />
+            </div>
+
+            <button class="btn-primary" id="saveIntegrationBtn">💾 حفظ إعدادات الربط</button>
           </div>
 
           <div class="panel">
@@ -259,13 +340,23 @@
       <input type="hidden" id="leadId" />
       <label>اسم العميل</label>
       <input type="text" id="leadName" required />
-      <label>رقم الهاتف</label>
-      <input type="text" id="leadPhone" />
+      <label>رقم الهاتف (واتساب)</label>
+      <input type="text" id="leadPhone" placeholder="مثال: 201022459900" />
       <label>المصدر</label>
-      <input type="text" id="leadSource" placeholder="فيسبوك، إحالة، موقع..." />
+      <select id="leadSource">
+        <option value="">— اختر المصدر —</option>
+        <option>موقع مشكاة</option>
+        <option>واتساب</option>
+        <option>فيسبوك / ماسنجر</option>
+        <option>إعلان</option>
+        <option>إحالة</option>
+        <option>زيارة مباشرة</option>
+      </select>
+      <label>العقار المهتم به (اختياري)</label>
+      <select id="leadProperty"></select>
       <label>الحالة</label>
       <select id="leadStatus"></select>
-      <label>الموظف المسؤول</label>
+      <label>الموظف المسؤول (اترك "تلقائي" للتوزيع العادل)</label>
       <select id="leadAssigned"></select>
       <label>القيمة المتوقعة (جنيه)</label>
       <input type="number" id="leadValue" min="0" />
@@ -314,6 +405,39 @@
         <option value="admin">مدير</option>
       </select>
       <button type="submit" class="btn-primary full">إضافة</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== نافذة إضافة/تعديل عقار ===================== -->
+<div id="propertyModal" class="modal">
+  <div class="modal-content">
+    <span class="close" data-close="propertyModal">&times;</span>
+    <h2 id="propertyModalTitle">إضافة عقار جديد</h2>
+    <form id="propertyForm">
+      <input type="hidden" id="propertyId" />
+      <label>اسم / وصف العقار</label>
+      <input type="text" id="propTitle" required />
+      <label>الموقع</label>
+      <input type="text" id="propLocation" required />
+      <label>المساحة</label>
+      <input type="text" id="propArea" placeholder="مثال: 220 م²" />
+      <label>السعر (جنيه)</label>
+      <input type="number" id="propPrice" min="0" />
+      <label>الحالة</label>
+      <select id="propStatus">
+        <option>متاح</option>
+        <option>محجوز</option>
+        <option>مباع</option>
+      </select>
+      <label>المصدر</label>
+      <select id="propSource">
+        <option>موقع</option>
+        <option>إعلان</option>
+        <option>فيسبوك</option>
+        <option>إحالة</option>
+      </select>
+      <button type="submit" class="btn-primary full">حفظ</button>
     </form>
   </div>
 </div>

@@ -273,6 +273,22 @@ input,select{font-family:inherit;}
 .admin-grid .panel:last-child{grid-column:1/-1;}
 .muted-text{color:var(--muted);font-size:13px;margin:0 0 14px;line-height:1.6;}
 .backup-actions{display:flex;gap:10px;flex-wrap:wrap;}
+.head-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.integration-group{background:#F8FAFC;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;}
+.integration-group h4{margin:0 0 10px;font-size:14px;color:var(--accent);}
+.integration-group input[type="text"],.integration-group select{
+  width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:13px;margin-bottom:8px;background:#fff;
+}
+.check-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-bottom:10px;cursor:pointer;}
+
+/* ---------------- سجل اللحظة (Live Log) ---------------- */
+.live-log{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;}
+.log-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#F8FAFC;border:1px solid var(--border);border-radius:9px;font-size:13px;}
+.log-time{font-size:11px;color:#94A3B8;font-family:monospace;direction:ltr;}
+.log-badge{background:var(--accent);color:#fff;font-size:11px;padding:2px 10px;border-radius:20px;white-space:nowrap;}
+.log-text{color:var(--text);flex:1;}
+
+.info-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
 
 /* ---------------- Modal ---------------- */
 .modal{display:none;position:fixed;inset:0;background:rgba(10,15,30,.45);align-items:center;justify-content:center;z-index:50;}
@@ -283,9 +299,9 @@ input,select{font-family:inherit;}
 }
 .modal-content h2{margin:0 0 18px;font-size:19px;}
 .close{position:absolute;top:14px;left:18px;font-size:24px;color:var(--muted);cursor:pointer;}
-#leadForm,#activityForm,#employeeForm{display:flex;flex-direction:column;}
-#leadForm label,#activityForm label,#employeeForm label{font-size:12.5px;color:var(--muted);margin:8px 0 4px;}
-#leadForm input,#leadForm select,#activityForm input,#activityForm select,#employeeForm input,#employeeForm select{
+#leadForm,#activityForm,#employeeForm,#propertyForm{display:flex;flex-direction:column;}
+#leadForm label,#activityForm label,#employeeForm label,#propertyForm label{font-size:12.5px;color:var(--muted);margin:8px 0 4px;}
+#leadForm input,#leadForm select,#activityForm input,#activityForm select,#employeeForm input,#employeeForm select,#propertyForm input,#propertyForm select{
   padding:11px 13px;border:1px solid var(--border);border-radius:10px;font-size:13.5px;background:#F9FAFC;
 }
 

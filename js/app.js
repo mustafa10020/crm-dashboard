@@ -65,7 +65,8 @@ const VIEW_TITLES = {
   dashboard: ['الرئيسية', 'نظرة عامة على أداء اليوم'],
   leads: ['العملاء', 'إدارة وتصنيف كل العملاء'],
   customer: ['ملف العميل', 'بيانات كاملة ومتابعات وسجل محادثة'],
-  admin: ['لوحة الإدمن', 'إدارة الموظفين والأداء والنسخ الاحتياطي']
+  properties: ['العقارات', 'التسويق العقاري — إدارة العقارات وربطها بالعملاء'],
+  admin: ['لوحة الإدمن', 'إدارة الموظفين والأداء والربط التلقائي']
 };
 
 function goTo(view) {
@@ -79,6 +80,7 @@ function goTo(view) {
 
   if (view === 'dashboard') renderDashboard();
   if (view === 'leads') renderLeadsPage();
+  if (view === 'properties') renderPropertiesPage();
   if (view === 'admin') renderAdminPage();
 }
 
@@ -169,6 +171,23 @@ function renderDashboard() {
   renderPulse();
   renderStatusChart();
   renderEmployeeChart();
+  renderLiveLog();
+}
+
+/* سجل الخطوات لحظة بلحظة — كل إجراء يسجله الفريق يظهر هنا فوراً */
+function renderLiveLog() {
+  const log = DataStore.getActivityLog();
+  const el = $('#liveLog');
+  if (!log.length) {
+    el.innerHTML = '<p class="empty-state">لم تُسجَّل خطوات بعد. أي إضافة عميل، نشاط، توزيع، أو تغيير حالة سيظهر هنا لحظياً.</p>';
+    return;
+  }
+  el.innerHTML = log.slice(0, 30).map(l => `
+    <div class="log-row">
+      <span class="log-time">${l.time ? l.time.slice(11, 16) : ''}</span>
+      <span class="log-badge">${l.action}</span>
+      <span class="log-text">${l.text}</span>
+    </div>`).join('');
 }
 
 /* الأنشطة القادمة خلال 7 أيام، مقسّمة بتابات */
@@ -268,9 +287,15 @@ function populateStatusSelects() {
 function populateEmployeeSelects() {
   const emps = DataStore.getEmployees();
   const opts = emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-  $('#leadAssigned').innerHTML = opts;
+  $('#leadAssigned').innerHTML = '<option value="">⚖️ تلقائي (توزيع عادل)</option>' + opts;
   $('#filterEmployee').innerHTML = '<option value="">كل الموظفين</option>' + opts;
   $('#filterEmployee').closest('.filters').style.display = isAdmin() ? '' : 'none';
+}
+
+function populatePropertySelects() {
+  const props = DataStore.getProperties();
+  $('#leadProperty').innerHTML = '<option value="">— بدون عقار —</option>' +
+    props.map(p => `<option value="${p.id}">${p.title} (${p.price ? (+p.price).toLocaleString('ar-EG') + ' ج.م' : ''})</option>`).join('');
 }
 
 function renderLeadsPage() {
@@ -325,8 +350,9 @@ function drawLeadsTable() {
   $all('[data-del]', body).forEach(b => b.addEventListener('click', e => {
     e.stopPropagation();
     if (confirm('هل تريد حذف هذا العميل نهائيًا؟')) {
-      const all = DataStore.getCustomers().filter(c => c.id !== b.dataset.del);
-      DataStore.saveCustomers(all);
+      const removed = DataStore.getCustomers().find(c => c.id === b.dataset.del);
+      DataStore.saveCustomers(DataStore.getCustomers().filter(c => c.id !== b.dataset.del));
+      DataStore.logActivity('حذف عميل', `تم حذف "${removed ? removed.name : ''}"`);
       showToast('تم حذف العميل');
       drawLeadsTable();
     }
@@ -345,6 +371,7 @@ function openLeadModal(customerId) {
   $('#leadModalTitle').textContent = isEdit ? 'تعديل بيانات العميل' : 'إضافة عميل جديد';
   populateStatusSelects();
   populateEmployeeSelects();
+  populatePropertySelects();
 
   if (isEdit) {
     const c = DataStore.getCustomers().find(x => x.id === customerId);
@@ -354,11 +381,12 @@ function openLeadModal(customerId) {
     $('#leadSource').value = c.source || '';
     $('#leadStatus').value = c.status;
     $('#leadAssigned').value = c.assignedTo || '';
+    $('#leadProperty').value = c.propertyId || '';
     $('#leadValue').value = c.value || 0;
   } else {
     $('#leadForm').reset();
     $('#leadId').value = '';
-    $('#leadAssigned').value = isAdmin() ? DataStore.getEmployees()[0]?.id : CURRENT_USER.id;
+    $('#leadAssigned').value = isAdmin() ? '' : CURRENT_USER.id;
   }
   openModal('leadModal');
 }
@@ -373,20 +401,132 @@ $('#leadForm').addEventListener('submit', e => {
     source: $('#leadSource').value.trim(),
     status: $('#leadStatus').value,
     assignedTo: $('#leadAssigned').value,
+    propertyId: $('#leadProperty').value,
     value: Number($('#leadValue').value) || 0
   };
   if (id) {
     const idx = all.findIndex(c => c.id === id);
     all[idx] = { ...all[idx], ...payload };
+    DataStore.logActivity('تعديل عميل', `تم تحديث بيانات "${payload.name}"`);
     showToast('تم تحديث بيانات العميل');
   } else {
-    all.push({ id: uid('cus'), ...payload, createdAt: todayISO(), notes: [], activities: [], conversation: [] });
-    showToast('تم إضافة العميل بنجاح');
+    const customer = { id: uid('cus'), ...payload, createdAt: todayISO(), notes: [], activities: [], conversation: [] };
+    // إذا لم يُحدَّد موظف → توزيع عادل تلقائي
+    const assignedEmp = customer.assignedTo ? null : DataStore.autoAssignCustomer(customer);
+    all.push(customer);
+    DataStore.logActivity('إضافة عميل', `تمت إضافة "${customer.name}"${assignedEmp ? ' وإسناده تلقائياً إلى ' + assignedEmp.name : ''} (المصدر: ${customer.source || 'غير محدد'})`);
+    // إرسال للربط الخارجي إن كان مفعلاً
+    DataStore.submitToWebhooks(customer);
+    showToast('تم إضافة العميل بنجاح' + (assignedEmp ? ' — أسند إلى ' + assignedEmp.name : ''));
   }
   DataStore.saveCustomers(all);
   closeModal('leadModal');
   drawLeadsTable();
   if (CURRENT_VIEW === 'dashboard') renderDashboard();
+});
+
+/* ============================================================
+   صفحة العقارات (التسويق العقاري)
+   ============================================================ */
+function renderPropertiesPage() {
+  drawPropertiesTable();
+}
+
+function drawPropertiesTable() {
+  const search = $('#propertySearch').value.trim().toLowerCase();
+  const statusFilter = $('#filterPropertyStatus').value;
+  const customers = DataStore.getCustomers();
+
+  let list = DataStore.getProperties();
+  if (search) list = list.filter(p => (p.title + ' ' + p.location).toLowerCase().includes(search));
+  if (statusFilter) list = list.filter(p => p.status === statusFilter);
+
+  const body = $('#propertiesTableBody');
+  if (!list.length) {
+    body.innerHTML = `<tr><td colspan="8" class="empty-state">لا توجد عقارات. أضف أول عقار لبدء تنظيم التسويق العقاري</td></tr>`;
+    return;
+  }
+  body.innerHTML = list.map(p => {
+    const interested = customers.filter(c => c.propertyId === p.id).length;
+    const color = getComputedStyle(document.documentElement).getPropertyValue('--c-' + (PROPERTY_STATUS_COLORS[p.status] || 'blue')).trim();
+    return `
+    <tr data-prop="${p.id}">
+      <td><strong>${p.title}</strong></td>
+      <td>${p.location || '—'}</td>
+      <td>${p.area || '—'}</td>
+      <td>${(p.price || 0).toLocaleString('ar-EG')} ج.م</td>
+      <td><span class="status-pill" style="background:${color}">${p.status}</span></td>
+      <td>${interested}</td>
+      <td>${p.source || '—'}</td>
+      <td>
+        <div class="row-actions">
+          <button class="icon-btn" data-edit-prop="${p.id}">تعديل</button>
+          <button class="icon-btn danger" data-del-prop="${p.id}">حذف</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  $all('[data-edit-prop]', body).forEach(b => b.addEventListener('click', () => openPropertyModal(b.dataset.editProp)));
+  $all('[data-del-prop]', body).forEach(b => b.addEventListener('click', () => {
+    if (!confirm('حذف هذا العقار؟')) return;
+    DataStore.saveProperties(DataStore.getProperties().filter(p => p.id !== b.dataset.delProp));
+    DataStore.logActivity('حذف عقار', 'تم حذف عقار من القائمة');
+    showToast('تم حذف العقار');
+    drawPropertiesTable();
+  }));
+}
+
+['propertySearch', 'filterPropertyStatus'].forEach(id => {
+  $('#' + id).addEventListener('input', drawPropertiesTable);
+  $('#' + id).addEventListener('change', drawPropertiesTable);
+});
+
+$('#addPropertyBtn').addEventListener('click', () => openPropertyModal(null));
+
+function openPropertyModal(propertyId) {
+  $('#propertyModalTitle').textContent = propertyId ? 'تعديل العقار' : 'إضافة عقار جديد';
+  if (propertyId) {
+    const p = DataStore.getProperties().find(x => x.id === propertyId);
+    $('#propertyId').value = p.id;
+    $('#propTitle').value = p.title;
+    $('#propLocation').value = p.location || '';
+    $('#propArea').value = p.area || '';
+    $('#propPrice').value = p.price || 0;
+    $('#propStatus').value = p.status;
+    $('#propSource').value = p.source || 'موقع';
+  } else {
+    $('#propertyForm').reset();
+    $('#propertyId').value = '';
+  }
+  openModal('propertyModal');
+}
+
+$('#propertyForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = $('#propertyId').value;
+  const all = DataStore.getProperties();
+  const payload = {
+    title: $('#propTitle').value.trim(),
+    location: $('#propLocation').value.trim(),
+    area: $('#propArea').value.trim(),
+    price: Number($('#propPrice').value) || 0,
+    status: $('#propStatus').value,
+    source: $('#propSource').value
+  };
+  if (id) {
+    const idx = all.findIndex(p => p.id === id);
+    all[idx] = { ...all[idx], ...payload };
+    DataStore.logActivity('تعديل عقار', `تم تحديث بيانات "${payload.title}"`);
+    showToast('تم تحديث العقار');
+  } else {
+    all.push({ id: uid('prop'), ...payload, createdAt: todayISO() });
+    DataStore.logActivity('إضافة عقار', `تمت إضافة عقار "${payload.title}" (${payload.location}) بسعر ${(+payload.price).toLocaleString('ar-EG')} ج.م`);
+    showToast('تم إضافة العقار');
+  }
+  DataStore.saveProperties(all);
+  closeModal('propertyModal');
+  drawPropertiesTable();
 });
 
 /* ============================================================
@@ -411,23 +551,33 @@ function renderCustomerPage() {
   const color = getComputedStyle(document.documentElement).getPropertyValue('--c-' + STATUS_COLORS[c.status]).trim();
 
   $('#custName').textContent = c.name;
-  $('#custMeta').textContent = `${c.phone || 'بدون هاتف'} · المصدر: ${c.source || '—'} · المسؤول: ${emp ? emp.name : '—'}`;
+  const prop = DataStore.getProperties().find(p => p.id === c.propertyId);
+  $('#custMeta').textContent = `${c.phone || 'بدون هاتف'} · المصدر: ${c.source || '—'} · المسؤول: ${emp ? emp.name : '—'}${prop ? ' · العقار: ' + prop.title : ''}`;
   $('#custStatusPill').textContent = c.status;
   $('#custStatusPill').style.background = color;
 
   $('#ctab-info').innerHTML = `
     <div class="info-grid">
       <div class="info-item"><span>اسم العميل</span><strong>${c.name}</strong></div>
-      <div class="info-item"><span>رقم الهاتف</span><strong>${c.phone || '—'}</strong></div>
+      <div class="info-item"><span>رقم الهاتف / واتساب</span><strong>${c.phone || '—'}</strong></div>
       <div class="info-item"><span>المصدر</span><strong>${c.source || '—'}</strong></div>
       <div class="info-item"><span>الحالة الحالية</span><strong>${c.status}</strong></div>
       <div class="info-item"><span>الموظف المسؤول</span><strong>${emp ? emp.name : '—'}</strong></div>
+      <div class="info-item"><span>العقار المهتم به</span><strong>${prop ? prop.title : '—'}</strong></div>
       <div class="info-item"><span>القيمة المتوقعة</span><strong>${(c.value || 0).toLocaleString('ar-EG')} ج.م</strong></div>
       <div class="info-item"><span>تاريخ الإضافة</span><strong>${c.createdAt}</strong></div>
     </div>
-    <button class="btn-secondary" style="margin-top:18px" id="editFromProfile">تعديل بيانات العميل</button>
+    <div class="info-actions">
+      <button class="btn-secondary" id="editFromProfile">تعديل بيانات العميل</button>
+      <button class="btn-secondary" id="waQuickLink">📲 فتح محادثة واتساب</button>
+    </div>
   `;
   $('#editFromProfile').addEventListener('click', () => openLeadModal(c.id));
+  $('#waQuickLink').addEventListener('click', () => {
+    if (!c.phone) { showToast('لا يوجد رقم هاتف لهذا العميل'); return; }
+    const num = c.phone.replace(/\D/g, '');
+    window.open('https://wa.me/' + num, '_blank');
+  });
 
   renderTimeline(c);
   renderWhatsapp(c);
@@ -469,12 +619,14 @@ $('#activityForm').addEventListener('submit', e => {
   e.preventDefault();
   const all = DataStore.getCustomers();
   const idx = all.findIndex(c => c.id === SELECTED_CUSTOMER_ID);
+  const text = $('#actText').value.trim();
   all[idx].activities = all[idx].activities || [];
   all[idx].activities.push({
-    id: uid('act'), text: $('#actText').value.trim(), type: $('#actType').value,
+    id: uid('act'), text, type: $('#actType').value,
     date: $('#actDate').value, done: false
   });
   DataStore.saveCustomers(all);
+  DataStore.logActivity('نشاط جديد', `"${all[idx].name}": ${text} (${$('#actDate').value})`);
   closeModal('activityModal');
   renderTimeline(all[idx]);
   showToast('تم إضافة النشاط');
@@ -502,6 +654,7 @@ $('#waForm').addEventListener('submit', e => {
   const time = `${todayISO()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   all[idx].conversation.push({ id: uid('msg'), direction: $('#waDirection').value, text: $('#waMessage').value.trim(), time });
   DataStore.saveCustomers(all);
+  DataStore.logActivity('رسالة واتساب', `"${all[idx].name}": ${$('#waDirection').value === 'out' ? 'مُرسلة' : 'واردة'} — ${$('#waMessage').value.trim()}`);
   $('#waMessage').value = '';
   renderWhatsapp(all[idx]);
 });
@@ -513,6 +666,7 @@ function renderAdminPage() {
   if (!isAdmin()) { goTo('dashboard'); return; }
   const employees = DataStore.getEmployees();
   const customers = DataStore.getCustomers();
+  loadIntegrationSettings();
 
   $('#employeesTableBody').innerHTML = employees.map(e => {
     const count = customers.filter(c => c.assignedTo === e.id).length;
@@ -556,15 +710,65 @@ $('#addEmployeeBtn').addEventListener('click', () => { $('#employeeForm').reset(
 $('#employeeForm').addEventListener('submit', e => {
   e.preventDefault();
   const list = DataStore.getEmployees();
-  list.push({
+  const newEmp = {
     id: uid('emp'), name: $('#empName').value.trim(), username: $('#empUser').value.trim(),
     password: $('#empPass').value, role: $('#empRole').value,
-    color: ['#4F46E5', '#0EA5A5', '#D97706', '#DB2777'][list.length % 4]
-  });
+    color: ['#4F46E5', '#0EA5A5', '#D97706', '#DB2777', '#16A34A', '#7C3AED'][list.length % 6]
+  };
+  list.push(newEmp);
   DataStore.saveEmployees(list);
+  DataStore.logActivity('إضافة موظف', `تمت إضافة الموظف "${newEmp.name}"`);
   closeModal('employeeModal');
   showToast('تم إضافة الموظف');
   renderAdminPage();
+});
+
+/* ---------- التوزيع العادل ---------- */
+$('#distributeBtn').addEventListener('click', () => {
+  if (!isAdmin()) return;
+  if (!confirm('إعادة توزيع كل العملاء الغير مسندين لأي موظف (توزيع عادل)؟')) return;
+  const n = DataStore.distributeUnassigned();
+  showToast(n ? `تم إسناد ${n} عميل تلقائياً` : 'لا يوجد عملاء غير مسندين');
+  renderAdminPage();
+  if (CURRENT_VIEW === 'dashboard') renderDashboard();
+});
+
+/* ---------- إعدادات الربط (Integration) ---------- */
+function loadIntegrationSettings() {
+  const cfg = DataStore.getIntegration();
+  $('#cfgDistMode').value = cfg.distributionMode;
+  $('#cfgWaEnabled').checked = !!cfg.whatsappEnabled;
+  $('#cfgWaNumber').value = cfg.whatsappNumber || '';
+  $('#cfgWaToken').value = cfg.whatsappToken || '';
+  $('#cfgWaWebhook').value = cfg.whatsappWebhook || '';
+  $('#cfgSheetsWebhook').value = cfg.sheetsWebhook || '';
+  $('#cfgSupabaseUrl').value = cfg.supabaseUrl || '';
+  $('#cfgSupabaseKey').value = cfg.supabaseKey || '';
+  $('#cfgMessengerEnabled').checked = !!cfg.messengerEnabled;
+  $('#cfgMessengerToken').value = cfg.messengerPageToken || '';
+}
+
+$('#saveIntegrationBtn').addEventListener('click', () => {
+  const cfg = DataStore.getIntegration();
+  cfg.distributionMode = $('#cfgDistMode').value;
+  cfg.whatsappEnabled = $('#cfgWaEnabled').checked;
+  cfg.whatsappNumber = $('#cfgWaNumber').value.trim();
+  cfg.whatsappToken = $('#cfgWaToken').value.trim();
+  cfg.whatsappWebhook = $('#cfgWaWebhook').value.trim();
+  cfg.sheetsWebhook = $('#cfgSheetsWebhook').value.trim();
+  cfg.supabaseUrl = $('#cfgSupabaseUrl').value.trim();
+  cfg.supabaseKey = $('#cfgSupabaseKey').value.trim();
+  cfg.messengerEnabled = $('#cfgMessengerEnabled').checked;
+  cfg.messengerPageToken = $('#cfgMessengerToken').value.trim();
+  DataStore.saveIntegration(cfg);
+  DataStore.logActivity('إعدادات الربط', `تم حفظ إعدادات الربط — وضع التوزيع: ${cfg.distributionMode === 'performance' ? 'الكفاءة' : 'العدالة'}`);
+  showToast('تم حفظ إعدادات الربط');
+});
+
+/* ---------- تحديث سجل اللحظة ---------- */
+$('#refreshLogBtn').addEventListener('click', () => {
+  renderLiveLog();
+  showToast('تم تحديث السجل اللحظي');
 });
 
 $('#exportBtn').addEventListener('click', () => {
