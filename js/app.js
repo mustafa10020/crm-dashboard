@@ -42,8 +42,10 @@ function visibleCustomers() {
    ============================================================ */
 $('#loginForm').addEventListener('submit', e => {
   e.preventDefault();
-  const user = $('#loginUser').value.trim();
-  const pass = $('#loginPass').value;
+  doLogin($('#loginUser').value.trim(), $('#loginPass').value);
+});
+
+function doLogin(user, pass) {
   const emp = DataStore.getEmployees().find(x => x.username === user && x.password === pass);
   if (!emp) {
     $('#loginError').textContent = 'بيانات الدخول غير صحيحة';
@@ -51,6 +53,13 @@ $('#loginForm').addEventListener('submit', e => {
   }
   DataStore.setSession({ employeeId: emp.id });
   boot();
+}
+
+$all('[data-quick]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const u = btn.dataset.quick;
+    doLogin(u, u === 'admin' ? 'admin123' : '123456');
+  });
 });
 
 $('#logoutBtn').addEventListener('click', () => {
