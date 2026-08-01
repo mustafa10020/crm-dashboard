@@ -172,6 +172,73 @@ function renderDashboard() {
   renderStatusChart();
   renderEmployeeChart();
   renderLiveLog();
+  renderMyDayBar();
+  renderSchedule();
+}
+
+/* شريط يوم الموظف — عملائي + متابعات اليوم + المتأخرة */
+function renderMyDayBar() {
+  const me = CURRENT_USER || {};
+  const list = visibleCustomers();
+  const today = todayISO();
+  const weekEnd = daysFromNow(7);
+  let todayCount = 0, overdueCount = 0, weekCount = 0;
+  list.forEach(c => (c.activities || []).forEach(a => {
+    if (a.type !== 'followup' && a.type !== 'meeting') return;
+    if (a.date === today) todayCount++;
+    else if (a.date < today) overdueCount++;
+    else if (a.date <= weekEnd) weekCount++;
+  }));
+  $('#myDayBar').innerHTML = `
+    <div class="my-day-item head">${me.name}</div>
+    <div class="my-day-item"><b>${list.length}</b> عميل مسند إليك</div>
+    <div class="my-day-item today"><b>${todayCount}</b> متابعة اليوم</div>
+    <div class="my-day-item warn"><b>${overdueCount}</b> متأخرة — لا تضيّع الموعد</div>
+    <div class="my-day-item"><b>${weekCount}</b> خلال 7 أيام</div>`;
+}
+
+/* جدول متابعات كل موظف تلقائياً بالتاريخ والساعة */
+function renderSchedule() {
+  const isAdminUser = isAdmin();
+  const employees = DataStore.getEmployees();
+  const empName = id => { const e = employees.find(x => x.id === id); return e ? e.name : '—'; };
+  const today = todayISO();
+  const weekEnd = daysFromNow(7);
+  const items = [];
+  visibleCustomers().forEach(c => (c.activities || []).forEach(a => {
+    if (a.type !== 'followup' && a.type !== 'meeting') return;
+    items.push({ ...a, customerId: c.id, customerName: c.name, empName: empName(c.assignedTo) });
+  }));
+  items.sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+
+  const section = (list, cls, label) => {
+    if (!list.length) return '';
+    return `<div class="schedule-group">
+      <div class="schedule-group-title ${cls}">${label} (${list.length})</div>
+      ${list.map(i => `
+        <div class="schedule-row ${cls}" data-open-cust="${i.customerId}">
+          <span class="sched-type">${i.type === 'meeting' ? '🤝' : '🔔'}</span>
+          <div class="sched-main">
+            <b>${i.customerName}</b>
+            <span>${i.text}</span>
+          </div>
+          <span class="sched-date" dir="ltr">${i.date}${i.time ? ' ' + i.time : ''}</span>
+          ${isAdminUser ? `<span class="sched-emp">${i.empName}</span>` : ''}
+        </div>`).join('')}
+    </div>`;
+  };
+
+  const html =
+    section(items.filter(i => i.date < today), 'overdue', '⚠️ متأخرة — راجعها فوراً') +
+    section(items.filter(i => i.date === today), 'today', '📅 اليوم') +
+    section(items.filter(i => i.date > today && i.date <= weekEnd), 'up', '🗓️ خلال 7 أيام') +
+    section(items.filter(i => i.date > weekEnd), 'later', '📆 لاحقاً');
+
+  $('#scheduleContent').innerHTML = html || '<p class="empty-state">لا توجد متابعات مجدولة في نطاقك الآن. أضف متابعة من ملف العميل وستظهر هنا تلقائياً.</p>';
+
+  $all('[data-open-cust]', $('#scheduleContent')).forEach(row => {
+    row.addEventListener('click', () => openCustomer(row.dataset.openCust));
+  });
 }
 
 /* سجل الخطوات لحظة بلحظة — كل إجراء يسجله الفريق يظهر هنا فوراً */
@@ -216,7 +283,7 @@ function renderActivitiesPanel(type) {
         <span class="a-name">${r.customerName}</span>
         <div>${r.text}</div>
       </div>
-      <span>${r.date}</span>
+      <span>${r.date}${r.time ? ' ' + r.time : ''}</span>
     </div>
   `).join('');
   $all('[data-open-customer]', el).forEach(row => {
@@ -600,7 +667,7 @@ function renderTimeline(c) {
   $('#timelineList').innerHTML = list.length
     ? list.map(a => `
       <div class="timeline-item type-${a.type}">
-        <span class="t-date">${a.date}</span>
+        <span class="t-date">${a.date}${a.time ? '<br>' + a.time : ''}</span>
         <div>
           <strong>${typeLabel[a.type] || a.type}</strong>
           <div>${a.text}</div>
@@ -612,6 +679,7 @@ function renderTimeline(c) {
 $('#addActivityBtn').addEventListener('click', () => {
   $('#activityForm').reset();
   $('#actDate').value = todayISO();
+  $('#actTime').value = new Date().toTimeString().slice(0, 5);
   openModal('activityModal');
 });
 
@@ -621,15 +689,18 @@ $('#activityForm').addEventListener('submit', e => {
   const idx = all.findIndex(c => c.id === SELECTED_CUSTOMER_ID);
   const text = $('#actText').value.trim();
   all[idx].activities = all[idx].activities || [];
-  all[idx].activities.push({
+  const act = {
     id: uid('act'), text, type: $('#actType').value,
-    date: $('#actDate').value, done: false
-  });
+    date: $('#actDate').value, time: $('#actTime').value || '', done: false
+  };
+  all[idx].activities.push(act);
   DataStore.saveCustomers(all);
-  DataStore.logActivity('نشاط جديد', `"${all[idx].name}": ${text} (${$('#actDate').value})`);
+  DataStore.logActivity('نشاط جديد', `"${all[idx].name}": ${text} (${act.date}${act.time ? ' ' + act.time : ''})`);
   closeModal('activityModal');
   renderTimeline(all[idx]);
-  showToast('تم إضافة النشاط');
+  renderSchedule();
+  renderMyDayBar();
+  showToast('تم إضافة النشاط إلى جدول المتابعات');
 });
 
 /* -------- سجل محادثة واتساب (يدوي، مرتبط بملف العميل) -------- */
